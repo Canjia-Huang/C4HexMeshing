@@ -112,7 +112,11 @@ int main(int argc, char** argv)
                    constraintFile,
                    "Set this string to generate a quantization constraint file (optional)");
     app.add_option(
-        "--output-igm-file", outputIGMFile, "Specify a file to generate an IGM from the quantization into (optional)");
+        "--output-igm-file",
+        outputIGMFile,
+        "Specify a file to generate an IGM from the quantization into (optional). Both the exact and the double "
+        "precision output contain the MC walls, i.e. the facets separating different blocks, so they can be read back "
+        "with --input-has-walls.");
     app.add_option("--output-igm-pre-requant",
                    outputIGMPreRequantFile,
                    "Specify a file prefix to write the IGM generated directly after collapsing, i.e. before the "
@@ -395,9 +399,9 @@ int main(int argc, char** argv)
                     Writer(meshProps, outputIGMPreRequantFile + "_pre_requant" + preSuccess + "_exact.hexex", true)
                         .writeIGMAndWalls());
                 ASSERT_SUCCESS(
-                    "Writing pre-requantization IGM in double precision",
+                    "Writing pre-requantization IGM in double precision including MC walls",
                     Writer(meshProps, outputIGMPreRequantFile + "_pre_requant" + preSuccess + ".hexex", false)
-                        .writeIGM());
+                        .writeIGMAndWalls());
 
                 // The IGM generation may have refined the base mesh and the IGM properties refer to the
                 // pre-requantization quantization, so we stop here instead of continuing with the pipeline.
@@ -467,10 +471,13 @@ int main(int argc, char** argv)
                                   outputIGMFile + "_" + std::to_string(timesMinimalHexes) + success + "_exact.hexex",
                                   true)
                                .writeIGMAndWalls());
+            // The MC walls (facets separating different blocks) are taken from IS_WALL, which is kept consistent with
+            // the block/patch mappings (BLOCK_MESH_TETS / PATCH_MESH_HALFFACES) through collapsing, remeshing and IGM
+            // generation. Writing them makes the file readable via --input-has-walls.
             ASSERT_SUCCESS(
-                "Writing IGM in double precision",
+                "Writing IGM in double precision including MC walls",
                 Writer(meshProps, outputIGMFile + "_" + std::to_string(timesMinimalHexes) + success + ".hexex", false)
-                    .writeIGM());
+                    .writeIGMAndWalls());
         }
 
         {
