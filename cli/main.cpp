@@ -393,11 +393,12 @@ int main(int argc, char** argv)
 
                 ASSERT_SUCCESS(
                     "Writing pre-requantization IGM in exact rational numbers",
-                    Writer(meshProps, outputIGMPreRequantFile + "_pre_requant" + preSuccess + "_exact.igm", true)
+                    Writer(meshProps, outputIGMPreRequantFile + "_pre_requant" + preSuccess + "_exact.hexex", true)
                         .writeIGMAndWalls());
-                ASSERT_SUCCESS("Writing pre-requantization IGM in double precision",
-                               Writer(meshProps, outputIGMPreRequantFile + "_pre_requant" + preSuccess + ".igm", false)
-                                   .writeIGM());
+                ASSERT_SUCCESS(
+                    "Writing pre-requantization IGM in double precision",
+                    Writer(meshProps, outputIGMPreRequantFile + "_pre_requant" + preSuccess + ".hexex", false)
+                        .writeIGM());
 
                 // The IGM generation may have refined the base mesh and the IGM properties refer to the
                 // pre-requantization quantization, so we stop here instead of continuing with the pipeline.
@@ -464,12 +465,12 @@ int main(int argc, char** argv)
         {
             ASSERT_SUCCESS("Writing IGM in exact rational numbers",
                            Writer(meshProps,
-                                  outputIGMFile + "_" + std::to_string(timesMinimalHexes) + success + "_exact.igm",
+                                  outputIGMFile + "_" + std::to_string(timesMinimalHexes) + success + "_exact.hexex",
                                   true)
                                .writeIGMAndWalls());
             ASSERT_SUCCESS(
                 "Writing IGM in double precision",
-                Writer(meshProps, outputIGMFile + "_" + std::to_string(timesMinimalHexes) + success + ".igm", false)
+                Writer(meshProps, outputIGMFile + "_" + std::to_string(timesMinimalHexes) + success + ".hexex", false)
                     .writeIGM());
         }
 
