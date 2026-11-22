@@ -116,9 +116,10 @@ int main(int argc, char** argv)
     app.add_option("--output-igm-pre-requant",
                    outputIGMPreRequantFile,
                    "Specify a file prefix to write the IGM generated directly after collapsing, i.e. before the "
-                   "re-quantization (optional, only has an effect together with --collapse). The run stops right after "
-                   "writing this IGM, so no re-quantization / hex extraction is performed and neither the collapsed MC "
-                   "nor the base mesh is modified any further.");
+                   "re-quantization (optional). Requires --collapse. The run stops right after writing this IGM, so no "
+                   "re-quantization / hex extraction is performed and neither the collapsed MC nor the base mesh is "
+                   "modified any further.")
+        ->needs("--collapse");
     auto optOutput = app.add_option(
         "--output-hex-file", outputHexFile, "Specify a file to generate a hex mesh from the IGM into (optional)");
     // app.add_option("--scaling", scaling, "Set this double to affect relative quantization scaling");
@@ -167,10 +168,8 @@ int main(int argc, char** argv)
         return app.exit(e);
     }
 
-    if (!outputIGMPreRequantFile.empty() && !doCollapse)
-        LOG(WARNING) << "--output-igm-pre-requant has no effect without --collapse (there is no post-collapse state)";
-    else if (!outputIGMPreRequantFile.empty()
-             && (!outputIGMFile.empty() || !outputHexFile.empty() || !constraintFile.empty() || blockStructured))
+    if (!outputIGMPreRequantFile.empty()
+        && (!outputIGMFile.empty() || !outputHexFile.empty() || !constraintFile.empty() || blockStructured))
         LOG(WARNING)
             << "--output-igm-pre-requant stops the pipeline right after collapsing, so the re-quantization and "
                "the corresponding outputs (--output-igm-file, --output-hex-file, --output-constraint-file, "
