@@ -63,6 +63,7 @@ int main(int argc, char** argv)
     double individualArcFactor = 0.01;
     std::string constraintFile = "";
     std::string outputIGMFile = "";
+    std::string outputIGMPreRequantFile = "";
     int untanglingIter = 500;
 
     std::string outputHexFile = "";
@@ -112,6 +113,12 @@ int main(int argc, char** argv)
                    "Set this string to generate a quantization constraint file (optional)");
     app.add_option(
         "--output-igm-file", outputIGMFile, "Specify a file to generate an IGM from the quantization into (optional)");
+    app.add_option("--output-igm-pre-requant",
+                   outputIGMPreRequantFile,
+                   "Specify a file prefix to write the IGM generated directly after collapsing, i.e. before the "
+                   "re-quantization (optional, only has an effect together with --collapse). The run stops right after "
+                   "writing this IGM, so no re-quantization / hex extraction is performed and neither the collapsed MC "
+                   "nor the base mesh is modified any further.");
     auto optOutput = app.add_option(
         "--output-hex-file", outputHexFile, "Specify a file to generate a hex mesh from the IGM into (optional)");
     // app.add_option("--scaling", scaling, "Set this double to affect relative quantization scaling");
@@ -159,6 +166,15 @@ int main(int argc, char** argv)
     {
         return app.exit(e);
     }
+
+    if (!outputIGMPreRequantFile.empty() && !doCollapse)
+        LOG(WARNING) << "--output-igm-pre-requant has no effect without --collapse (there is no post-collapse state)";
+    else if (!outputIGMPreRequantFile.empty()
+             && (!outputIGMFile.empty() || !outputHexFile.empty() || !constraintFile.empty() || blockStructured))
+        LOG(WARNING)
+            << "--output-igm-pre-requant stops the pipeline right after collapsing, so the re-quantization and "
+               "the corresponding outputs (--output-igm-file, --output-hex-file, --output-constraint-file, "
+               "--block-structured) are skipped";
 
     // Create base meshes and add property wrapper
     TetMesh meshRaw;
@@ -356,6 +372,40 @@ int main(int argc, char** argv)
 #endif
             ASSERT_SUCCESS("Collapsing 0-arcs",
                            MCCollapser(meshProps).collapseAllZeroElements(optimizeBaseMesh, randomOrder, direction));
+
+        if (!outputIGMPreRequantFile.empty())
+        {
+            if (!meshProps.get<MC_MESH_PROPS>()->isAllocated<ARC_INT_LENGTH>())
+                LOG(WARNING) << "Skipping pre-requantization IGM output: no quantization available";
+            else
+            {
+                LOG(INFO) << "Generating IGM directly after collapsing (before re-quantization)...";
+                auto preRet = IGMGenerator(meshProps).generateBlockwiseIGM(optimizeBaseMesh, untanglingIter, 8);
+                if (preRet != IGMGenerator::SUCCESS && preRet != IGMGenerator::NO_CONVERGENCE)
+                {
+                    LOG(ERROR) << "Generating pre-requantization IGM failed with error code " << preRet
+                               << ", aborting...";
+                    return preRet;
+                }
+                std::string preSuccess = (preRet == IGMGenerator::SUCCESS) ? "_clean" : "_dirty";
+                LOG(INFO) << "Pre-requantization IGM generated "
+                          << (preRet == IGMGenerator::SUCCESS ? "without inversions" : "with some inversions");
+
+                ASSERT_SUCCESS(
+                    "Writing pre-requantization IGM in exact rational numbers",
+                    Writer(meshProps, outputIGMPreRequantFile + "_pre_requant" + preSuccess + "_exact.igm", true)
+                        .writeIGMAndWalls());
+                ASSERT_SUCCESS("Writing pre-requantization IGM in double precision",
+                               Writer(meshProps, outputIGMPreRequantFile + "_pre_requant" + preSuccess + ".igm", false)
+                                   .writeIGM());
+
+                // The IGM generation may have refined the base mesh and the IGM properties refer to the
+                // pre-requantization quantization, so we stop here instead of continuing with the pipeline.
+                LOG(INFO) << "Stopping after pre-requantization IGM output: no re-quantization, no hex extraction";
+                return 0;
+            }
+        }
+
         if (blockStructured && timesMinimalHexes >= 1)
         {
             Q paramVol = 0;
